@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Yao Xiang | UC San Diego '29 | Bioinformatics | Computational Biology" />
+  <title>Yao Xiang</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <div id="top"></div>
+
+  <!-- Header / Navbar -->
+  <header class="navbar" role="banner">
+    <div class="nav-inner">
+      <a class="nav-home" href="#hero" aria-label="Go to top">Home</a>
+
+      <nav class="nav-links" aria-label="Primary">
+        <a href="https://github.com/Trisssoil" target="_blank" rel="noreferrer">GitHub</a>
+        <a href="https://www.linkedin.com/in/yaoxiang-trisoil" target="_blank" rel="noreferrer">LinkedIn</a>
+      </nav>
+
+      <!-- refined CV button (no shape/icon) -->
+      <a class="nav-cv" href="assets/YaoXiang_CV.pdf" target="_blank" rel="noreferrer" aria-label="Open CV PDF">
+        My CV
+      </a>
+    </div>
+  </header>
+
+  <main class="container" role="main">
+    <!-- HERO -->
+    <section id="hero" class="hero">
+      <div class="hero-left">
+        <div class="avatar" aria-label="Profile photo">
+          <img src="assets/profile.png" alt="Portrait of Yao Xiang" />
+          <div class="avatar-placeholder" aria-hidden="true">
+            <div class="head"></div>
+            <div class="shoulders"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-right">
+        <h1 class="name">Yao Xiang</h1>
+        <p class="subtitle">UC San Diego ’29</p>
+        <p class="field">Biology with Specialization in Bioinformatics</p>
+        <p class="tagline">Computational biology, protein dynamics</p>
+
+        <!-- removed hero buttons (My CV / GitHub) -->
+      </div>
+    </section>
+
+    <!-- INTRO -->
+    <section id="intro" class="section">
+      <div class="section-head">
+        <h2>Self Introduction</h2>
+      </div>
+
+      <div class="intro-grid">
+        <div class="prose intro-text">
+          <p>I’m a UC San Diego student (Class of 2029) studying bioinformatics.</p>
+          <p>
+            I’m interested in computational biology for drug development and protein design.
+            Currently learning protein design and engineering theory.
+          </p>
+          <p>My email: yax027@ucsd.edu</p>
+        </div>
+
+        <aside class="skills-panel" aria-label="Skills">
+          <div class="skills-head">
+            <h3>Skills</h3>
+          </div>
+          <div id="skillsBubbles" class="skills-bubbles" aria-hidden="false"></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ACTIVITIES -->
+    <section id="activities" class="section">
+      <div class="section-head">
+        <h2>Activities</h2>
+      </div>
+
+      <div class="card-list">
+        <article class="card">
+          <div class="card-icon" aria-hidden="true">🧬</div>
+          <div class="card-body">
+            <div class="card-top">
+              <h3>3rd Order Markov Gene Classifier</h3>
+              <span class="meta">Personal project · Dec. 2025</span>
+            </div>
+            <p>
+              Built a 3rd Order Markov-chain classifier for gene-like sequences and related statistcal tests(p<0.005)
+            </p>
+            <div class="card-links">
+              <a href="https://github.com/Trisssoil/3rd-Order-Markov-Gene-Classifier" target="_blank" rel="noreferrer">GitHub</a>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- EXPERIENCE -->
+    <section id="experience" class="section">
+      <div class="section-head">
+        <h2>Experience</h2>
+      </div>
+
+      <div class="card-list">
+        <article class="card detailed">
+          <div class="card-icon" aria-hidden="true">🧫</div>
+          <div class="card-body">
+            <div class="card-top">
+              <h3>Institute of Clinical Pathology, West China Hospital, Sichuan University (P.R.C.)</h3>
+              <span class="meta">Jul. 2023 – Aug. 2023</span>
+            </div>
+
+            <p class="focus">
+              <span class="role">Intern</span>
+            </p>
+
+            <ul class="bullets">
+              <li>Assisted with proteomic workflow using <span class="em">Proteome Discoverer</span>.</li>
+              <li>Prepared tissue samples using a microtome under technician supervision.</li>
+              <li>Helped with basic tasks during a rat liver perfusion and dissociation experiment; learned workflow and protocols.</li>
+              <li>Measured and evaluated hepatic spheroid suspensions using a <span class="em">Coulter Counter</span>; recorded QC data.</li>
+              <li>Reviewed literature on bioartificial liver technologies; summarized key limitations and challenges.</li>
+            </ul>
+
+            <div class="tag-row" aria-label="Keywords">
+              <span class="tag">Pathology</span>
+              <span class="tag">Bioartificial Liver</span>
+              <span class="tag">Cell Culture</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- HOBBIES -->
+    <section id="hobbies" class="section">
+      <div class="section-head">
+        <h2>My Hobbies</h2>
+      </div>
+
+      <div class="prose">
+        <p>An amateur French Horn player in The Intermission Orchestra @ UCSD</p>
+        <p>I love Touhou Project &amp; Vocaloid!</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer / Touch grass strip -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-left">
+        <span class="footer-text">Help me to touch grass</span>
+        <span class="drag-hint">
+          <span class="hand" id="dragHand" aria-label="Drag to touch grass" role="img">🫳</span>
+          <span class="hint">drag to touch grass</span>
+        </span>
+      </div>
+      <p class="footer-right">Yao Xiang • 2026</p>
+    </div>
+
+    <!-- Hills -->
+    <div class="hills" id="hills" aria-hidden="true">
+      <svg class="hills-svg" viewBox="0 0 1200 220" preserveAspectRatio="none">
+        <path class="hill-layer hill-1"
+              d="M0,160 C200,110 320,190 520,145 C710,105 840,165 1020,130 C1120,110 1160,120 1200,115 L1200,220 L0,220 Z" />
+        <path class="hill-layer hill-2"
+              d="M0,175 C170,150 260,210 430,170 C600,130 740,205 900,165 C1030,130 1100,155 1200,145 L1200,220 L0,220 Z" />
+        <path class="hill-layer hill-3"
+              d="M0,190 C210,175 280,225 460,195 C640,165 760,220 960,190 C1080,172 1140,190 1200,182 L1200,220 L0,220 Z" />
+      </svg>
+      <div class="bubble-layer" id="bubbleLayer" aria-hidden="true"></div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
