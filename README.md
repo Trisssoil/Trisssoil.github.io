@@ -1,1 +1,1 @@
-<url>Trisssoil(https://trisssoil.github.io)</url>
+<url>https://trisssoil.github.io</url>
