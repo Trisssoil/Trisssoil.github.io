@@ -26,7 +26,7 @@
   const surfaces = document.querySelectorAll('.navbar, .links-dropdown, .intro-text, .skills-panel, .card, #hobbies .prose, .avatar');
   surfaces.forEach((el, index) => {
     el.classList.add('liquid-glass');
-    if (nativeLens && !el.matches('.avatar')) {
+    if (nativeLens && !el.matches('.avatar, .links-dropdown')) {
     const filter = document.createElementNS(ns, 'filter');
     filter.id = `lens-${index}`;
     filter.setAttribute('color-interpolation-filters', 'sRGB');
@@ -108,17 +108,6 @@
     if (el.matches('.card, .intro-text, .skills-panel, #hobbies .prose')) {
       el.classList.add('pointer-surface');
       const sheen=document.createElement('span');sheen.className='pointer-sheen';sheen.setAttribute('aria-hidden','true');el.appendChild(sheen);
-      if (!motion.matches) {
-        const revealObserver=new IntersectionObserver(entries=>{
-          if(!entries[0].isIntersecting) return;
-          revealObserver.disconnect();
-          el.animate([
-            {opacity:0,transform:'perspective(1000px) rotateX(8deg) translateY(26px) scale(.985)'},
-            {opacity:1,transform:'perspective(1000px) rotateX(0) translateY(0) scale(1)'}
-          ],{duration:680,delay:Math.min(index,6)*42,easing:'cubic-bezier(.18,.78,.22,1)'});
-        },{threshold:.12});
-        revealObserver.observe(el);
-      }
     }
     let hoverFrame = null;
     el.addEventListener('pointermove', e => {
@@ -401,6 +390,9 @@
   }
   choices.forEach((button,index)=>button.addEventListener('click',()=>{
     if(button.getAttribute('aria-pressed')==='true') return;
+    const lens=selector.querySelector('.toolkit-lens');
+    const from=new DOMMatrixReadOnly(getComputedStyle(lens).transform).m41;
+    lens.getAnimations().forEach(animation=>animation.cancel());
     choices.forEach(other=>other.setAttribute('aria-pressed',String(other===button)));
     selector.style.setProperty('--selected',index);
     const [particleShape,items,note]=toolkit[button.dataset.toolkit];
@@ -408,14 +400,16 @@
     stage.querySelector('.toolkit-items').textContent=items;
     stage.querySelector('.toolkit-note').textContent=note;
     if(!motion.matches) {
-      const lens=selector.querySelector('.toolkit-lens');
-      lens.getAnimations().forEach(animation=>animation.cancel());
+      const to=index*lens.offsetWidth;
+      const distance=to-from;
+      lens.style.transformOrigin=index===0?'left center':index===choices.length-1?'right center':'center';
       lens.animate([
-        {scale:'1'},
-        {scale:'1.026 .974',offset:.32},
-        {scale:'.992 1.014',offset:.64},
-        {scale:'1'}
-      ],{duration:440,easing:'cubic-bezier(.22,.82,.24,1)'});
+        {transform:`translateX(${from}px) scale(1)`},
+        {transform:`translateX(${from+distance*.72}px) scale(1.09,.9)`,offset:.4},
+        {transform:`translateX(${to}px) scale(.96,1.045)`,offset:.7},
+        {transform:`translateX(${to}px) scale(1.012,.99)`,offset:.86},
+        {transform:`translateX(${to}px) scale(1)`}
+      ],{duration:540,easing:'cubic-bezier(.25,.7,.3,1)'});
       stage.animate([{opacity:.25,transform:'translateY(8px) scale(.97)'},{opacity:1,transform:'translateY(0) scale(1)'}],{duration:420,easing:'cubic-bezier(.2,.8,.2,1)'});
     }
   }));
