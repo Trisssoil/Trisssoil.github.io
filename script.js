@@ -26,25 +26,47 @@
   const surfaces = document.querySelectorAll('.navbar, .links-dropdown, .intro-text, .skills-panel, .card, #hobbies .prose, .avatar');
   surfaces.forEach((el, index) => {
     el.classList.add('liquid-glass');
-    if (nativeLens && el.matches('.navbar, .links-dropdown')) {
+    if (nativeLens && !el.matches('.avatar')) {
     const filter = document.createElementNS(ns, 'filter');
     filter.id = `lens-${index}`;
     filter.setAttribute('color-interpolation-filters', 'sRGB');
-    filter.setAttribute('x', '-10%'); filter.setAttribute('y', '-10%');
-    filter.setAttribute('width', '120%'); filter.setAttribute('height', '120%');
+    filter.setAttribute('filterUnits','userSpaceOnUse');
+    filter.setAttribute('primitiveUnits','userSpaceOnUse');
+    filter.setAttribute('x','0');filter.setAttribute('y','0');
     const map = document.createElementNS(ns, 'feImage');
     map.setAttribute('result', 'normal'); map.setAttribute('preserveAspectRatio', 'none');
     const displacement = document.createElementNS(ns, 'feDisplacementMap');
     displacement.setAttribute('in', 'SourceGraphic'); displacement.setAttribute('in2', 'normal');
-    displacement.setAttribute('scale', '6');
+    // Stronger lensing stays within the rim; label backing remains undistorted.
+    displacement.setAttribute('scale', el.matches('.navbar') ? '28' : el.matches('.links-dropdown') ? '16' : '76');
     displacement.setAttribute('xChannelSelector', 'R'); displacement.setAttribute('yChannelSelector', 'G');
-    filter.append(map, displacement); defs.appendChild(filter);
+    filter.append(map, displacement);
+    if (!el.matches('.navbar, .links-dropdown')) {
+      // Separate color sampling only slightly, using the same smooth normal map.
+      displacement.setAttribute('result','greenLens');
+      const channel=(name,scale,values)=>{
+        const bend=document.createElementNS(ns,'feDisplacementMap');
+        bend.setAttribute('in','SourceGraphic');bend.setAttribute('in2','normal');
+        bend.setAttribute('scale',String(scale));bend.setAttribute('xChannelSelector','R');bend.setAttribute('yChannelSelector','G');
+        bend.setAttribute('result',name+'Lens');filter.appendChild(bend);
+        const color=document.createElementNS(ns,'feColorMatrix');
+        color.setAttribute('in',name+'Lens');color.setAttribute('type','matrix');color.setAttribute('values',values);color.setAttribute('result',name);filter.appendChild(color);
+      };
+      channel('red',75,'1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0');
+      const green=document.createElementNS(ns,'feColorMatrix');green.setAttribute('in','greenLens');green.setAttribute('type','matrix');green.setAttribute('values','0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0');green.setAttribute('result','green');filter.appendChild(green);
+      channel('blue',77,'0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0');
+      for(const [a,b,result] of [['red','green','rg'],['rg','blue','spectrum']]) {
+        const merge=document.createElementNS(ns,'feComposite');merge.setAttribute('in',a);merge.setAttribute('in2',b);merge.setAttribute('operator','arithmetic');merge.setAttribute('k2','1');merge.setAttribute('k3','1');merge.setAttribute('result',result);filter.appendChild(merge);
+      }
+    }
+    defs.appendChild(filter);
     el.style.setProperty('--lens-filter', `url(#${filter.id})`);
     let oldSize = '';
     const updateMap = () => {
       const w = Math.round(el.offsetWidth), h = Math.round(el.offsetHeight);
       if (!w || !h || oldSize === `${w}:${h}`) return;
       oldSize = `${w}:${h}`;
+      filter.setAttribute('width',String(w));filter.setAttribute('height',String(h));
       const canvas = document.createElement('canvas');
       // Cap map resolution; this is built only when geometry changes.
       const ratio = Math.min(1, 600 / w);
@@ -55,17 +77,16 @@
       const pixels = ctx.createImageData(canvas.width, canvas.height);
       const radius = Math.min(parseFloat(getComputedStyle(el).borderTopLeftRadius) || 28, w/2, h/2);
       for (let y=0; y<canvas.height; y++) for (let x=0; x<canvas.width; x++) {
-        const px=(x+.5)/ratio-w/2, py=(y+.5)/ratio-h/2;
-        const qx=Math.abs(px)-(w/2-radius), qy=Math.abs(py)-(h/2-radius);
-        const ax=Math.max(qx,0), ay=Math.max(qy,0), length=Math.hypot(ax,ay);
-        const distance=length+Math.min(Math.max(qx,qy),0)-radius;
-        const strength=Math.sin(clamp(-distance/12,0,1)*Math.PI);
-        let nx=0, ny=0;
-        if (length>0) { nx=ax/length*Math.sign(px); ny=ay/length*Math.sign(py); }
-        else if (qx>qy) nx=Math.sign(px); else ny=Math.sign(py);
+        const px=(x+.5)/ratio, py=(y+.5)/ratio;
+        // Continuous inward field: blend all four sides instead of switching
+        // nearest-edge normals at an inner rectangle. Never sample beyond edges.
+        const falloff=Math.min(76,w/4,h/3);
+        const left=Math.exp(-px/falloff),right=Math.exp(-(w-px)/falloff);
+        const top=Math.exp(-py/falloff),bottom=Math.exp(-(h-py)/falloff);
+        const nx=left-right,ny=top-bottom;
         const i=(y*canvas.width+x)*4;
-        pixels.data[i]=128+nx*strength*110;
-        pixels.data[i+1]=128+ny*strength*110;
+        pixels.data[i]=128+nx*100;
+        pixels.data[i+1]=128+ny*100;
         pixels.data[i+2]=128; pixels.data[i+3]=255;
       }
       ctx.putImageData(pixels,0,0);
@@ -75,6 +96,11 @@
     };
     new ResizeObserver(updateMap).observe(el);
     updateMap();
+    if (!el.matches('.navbar, .links-dropdown')) {
+      new IntersectionObserver(entries => {
+        el.classList.toggle('lens-visible', entries[0].isIntersecting);
+      }, {rootMargin:'40px'}).observe(el);
+    }
     }
     if (el.matches('.card, .intro-text, .skills-panel, #hobbies .prose')) {
       el.classList.add('pointer-surface');
@@ -155,6 +181,23 @@
   };
   motion.addEventListener('change',settleGrass);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)settleGrass();});
+
+  if(hand) {
+    let lightFrame=null;
+    hand.addEventListener('pointermove',e=>{
+      if(motion.matches || hand.classList.contains('is-floating') || lightFrame!==null)return;
+      lightFrame=requestAnimationFrame(()=>{
+        const r=hand.getBoundingClientRect();
+        hand.style.setProperty('--hand-x',`${clamp((e.clientX-r.left)/r.width,0,1)*100}%`);
+        hand.style.setProperty('--hand-y',`${clamp((e.clientY-r.top)/r.height,0,1)*100}%`);
+        lightFrame=null;
+      });
+    });
+    hand.addEventListener('pointerleave',()=>{
+      if(lightFrame!==null)cancelAnimationFrame(lightFrame);lightFrame=null;
+      hand.style.setProperty('--hand-x','30%');hand.style.setProperty('--hand-y','25%');
+    });
+  }
 
   if (hand && hills && bubbleLayer) {
     const home = hand.parentElement;
@@ -255,24 +298,20 @@
   // Native disclosure stays keyboard accessible and dismisses predictably.
   const linksMenu = document.querySelector('.links-menu');
   if (linksMenu) {
-    const trigger=linksMenu.querySelector('summary');
-    const dropdown=linksMenu.querySelector('.links-dropdown');
-    linksMenu.addEventListener('toggle',()=>{
-      if(!linksMenu.open || motion.matches) return;
-      trigger.animate([{transform:'scale(1)'},{transform:'scale(1.12,.86)'},{transform:'scale(.96,1.06)'},{transform:'scale(1)'}],{duration:520,easing:'cubic-bezier(.2,.8,.2,1)'});
-      dropdown.animate([
-        {opacity:0,transform:'translateY(-20px) scale(.45,.18)',borderRadius:'60px'},
-        {opacity:1,transform:'translateY(3px) scale(1.04,.96)',borderRadius:'28px',offset:.7},
-        {opacity:1,transform:'translateY(0) scale(1)',borderRadius:'22px'}
-      ],{duration:560,easing:'cubic-bezier(.2,.85,.2,1)'});
+    const linksSummary=linksMenu.querySelector('summary');
+    linksSummary.addEventListener('pointermove',event=>{
+      const rect=linksSummary.getBoundingClientRect();
+      linksSummary.style.setProperty('--links-x',`${event.clientX-rect.left}px`);
+      linksSummary.style.setProperty('--links-y',`${event.clientY-rect.top}px`);
     });
+    // Opening motion is bound to [open] in CSS, before the first paint.
     document.addEventListener('pointerdown', e => {
       if (!linksMenu.contains(e.target)) linksMenu.open = false;
     });
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && linksMenu.open) {
         linksMenu.open = false;
-        linksMenu.querySelector('summary').focus();
+        linksSummary.focus();
       }
     });
     linksMenu.addEventListener('focusout', e => {
@@ -299,12 +338,39 @@
     }
   }));
 
+  if(selector) {
+    let scrubPointer=null;
+    const selectAt=x=>{
+      const r=selector.getBoundingClientRect();
+      const index=clamp(Math.floor((x-r.left)/r.width*choices.length),0,choices.length-1);
+      choices[index]?.click();
+    };
+    selector.addEventListener('pointerdown',e=>{
+      if(!e.isPrimary || e.button!==0) return;
+      scrubPointer=e.pointerId;selector.setPointerCapture(e.pointerId);
+      selector.classList.add('is-scrubbing'); selectAt(e.clientX);
+    });
+    selector.addEventListener('pointermove',e=>{if(e.pointerId===scrubPointer)selectAt(e.clientX);});
+    const finishScrub=()=>{scrubPointer=null;selector.classList.remove('is-scrubbing');};
+    selector.addEventListener('pointerup',finishScrub);
+    selector.addEventListener('pointercancel',finishScrub);
+    selector.addEventListener('lostpointercapture',finishScrub);
+    selector.addEventListener('keydown',e=>{
+      if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
+      e.preventDefault();
+      const current=choices.findIndex(b=>b.getAttribute('aria-pressed')==='true');
+      const next=e.key==='Home'?0:e.key==='End'?choices.length-1:(current+(e.key==='ArrowRight'?1:-1)+choices.length)%choices.length;
+      choices[next].click();choices[next].focus();
+    });
+  }
+
   // Buttons retain their scroll transform while the inner droplet pops.
   document.querySelectorAll('.pearl-button').forEach(button=>{
     let busy=false;
     const relocate=()=>{
       const current=parseFloat(button.style.top)|| (button.classList.contains('pearl-left')?60:14);
-      const next=current<45?58+Math.random()*14:17+Math.random()*15;
+      const direction=current>70?-1:current<22?1:(Math.random()<.5?-1:1);
+      const next=clamp(current+direction*(4+Math.random()*4),18,78);
       button.style.top=`${next}%`;
       button.style.setProperty('--bubble-size',`${25+Math.random()*10}px`);
     };
@@ -354,4 +420,92 @@
     motion.addEventListener('change', renderScroll);
     renderScroll();
   }
+
+  // Home is still a normal anchor with JavaScript disabled or modifier-clicked.
+  const homeLink=document.querySelector('.nav-home');
+  const hero=document.getElementById('hero');
+  const portrait=document.querySelector('.avatar');
+  const name=document.querySelector('.name');
+  if(homeLink && hero && portrait && name) {
+    hero.setAttribute('tabindex','-1');
+    let run=0, frame=null, layer=null, activeAnimations=[];
+    const originalName=name.textContent;
+    name.setAttribute('aria-label',originalName);
+    name.textContent='';
+    for(const character of originalName) {
+      const letter=document.createElement('span');letter.className='home-letter';
+      letter.setAttribute('aria-hidden','true');letter.textContent=character===' '?'\u00a0':character;
+      name.appendChild(letter);
+    }
+    const clean=()=>{
+      run++;
+      if(frame!==null)cancelAnimationFrame(frame);
+      frame=null;layer?.remove();layer=null;
+      activeAnimations.forEach(animation=>animation.cancel());activeAnimations=[];
+      homeLink.classList.remove('home-launching');
+    };
+    const animate=(el,keys,options)=>{
+      const animation=el.animate(keys,options);activeAnimations.push(animation);return animation;
+    };
+    homeLink.addEventListener('click',event=>{
+      if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey||event.button>0)return;
+      event.preventDefault();clean();
+      const thisRun=run, keyboard=event.detail===0;
+      const origin=homeLink.getBoundingClientRect();
+      hero.scrollIntoView({behavior:motion.matches?'instant':'smooth',block:'start'});
+      try {const url=new URL(location.href);url.hash='hero';history.replaceState(history.state,'',url);} catch {}
+      if(motion.matches) {if(keyboard)hero.focus({preventScroll:true});return;}
+      homeLink.classList.add('home-launching');
+      animate(homeLink,[{transform:'scale(1)'},{transform:'scale(.79,1.13)',offset:.25},{transform:'scale(1.12,.91)',offset:.6},{transform:'scale(1)'}],{duration:480,easing:'ease-out'});
+      layer=document.createElement('div');layer.className='home-magic';layer.setAttribute('aria-hidden','true');document.body.appendChild(layer);
+      const comet=document.createElement('span');comet.className='home-comet';layer.appendChild(comet);
+      const trail=Array.from({length:12},(_,i)=>{const dot=document.createElement('i');dot.className='home-trail';dot.style.setProperty('--trail-size',`${7-i*.4}px`);layer.appendChild(dot);return dot;});
+      const start=performance.now(), x0=origin.left+origin.width/2,y0=origin.top+origin.height/2;
+      const historyPoints=[];
+      const arrival=()=>{
+        homeLink.classList.remove('home-launching');comet.remove();trail.forEach(dot=>dot.remove());
+        const target=portrait.getBoundingClientRect();const cx=target.left+target.width/2,cy=target.top+target.height/2;
+        const ring=document.createElement('span');ring.className='home-orbit-ring';ring.style.left=`${cx}px`;ring.style.top=`${cy}px`;layer.appendChild(ring);
+        const ringAnimation=animate(ring,[{transform:'translate(-50%,-50%) scale(.35)',opacity:0},{opacity:.8,offset:.18},{transform:'translate(-50%,-50%) scale(2.8)',opacity:0}],{duration:1000,easing:'ease-out',fill:'forwards'});
+        ringAnimation.onfinish=()=>ring.remove();
+        for(let i=0;i<18;i++) {
+          const spark=document.createElement('span');spark.className='home-spark';spark.style.left=`${cx}px`;spark.style.top=`${cy}px`;spark.style.setProperty('--spark-hue',`${170+i*7}`);layer.appendChild(spark);
+          const angle=i*Math.PI*2/18, radius=90+(i%3)*24;
+          animate(spark,[{transform:'translate(-50%,-50%) scale(0)',opacity:0},{opacity:.9,offset:.15},{transform:`translate(calc(-50% + ${Math.cos(angle)*radius}px),calc(-50% + ${Math.sin(angle)*radius}px)) scale(.2)`,opacity:0}],{duration:850+i%3*80,easing:'cubic-bezier(.1,.6,.3,1)',fill:'forwards'});
+        }
+        animate(portrait,[{transform:'rotate(3deg) scale(1)'},{transform:'rotate(-6deg) scale(.94)',offset:.2},{transform:'rotate(6deg) scale(1.045)',offset:.5},{transform:'rotate(3deg) scale(1)'}],{duration:850,easing:'cubic-bezier(.2,.8,.2,1)'});
+        name.querySelectorAll('.home-letter').forEach((letter,i)=>animate(letter,[{transform:'translateY(0)'},{transform:'translateY(-13px) rotate(-5deg)',offset:.4},{transform:'translateY(0)'}],{duration:540,delay:i*45,easing:'cubic-bezier(.2,.8,.2,1)'}));
+        if(keyboard)hero.focus({preventScroll:true});
+        setTimeout(()=>{if(run===thisRun)clean();},1400);
+      };
+      const fly=now=>{
+        if(run!==thisRun)return;
+        const t=Math.min(1,(now-start)/1050), eased=1-Math.pow(1-t,3);
+        const target=portrait.getBoundingClientRect();
+        const tx=target.left+target.width/2,ty=target.top+target.height/2;
+        const x=x0+(tx-x0)*eased;
+        const y=y0+(ty-y0)*eased-Math.sin(t*Math.PI)*Math.min(95,innerHeight*.12);
+        comet.style.transform=`translate3d(${x}px,${y}px,0) scale(${1+Math.sin(t*Math.PI)*.5})`;
+        historyPoints.unshift({x,y});if(historyPoints.length>48)historyPoints.pop();
+        trail.forEach((dot,i)=>{const point=historyPoints[Math.min(i*3,historyPoints.length-1)];dot.style.transform=`translate3d(${point.x}px,${point.y}px,0)`;dot.style.opacity=String((1-i/12)*.5);});
+        if(t<1)frame=requestAnimationFrame(fly);else {frame=null;arrival();}
+      };
+      frame=requestAnimationFrame(fly);
+    });
+    window.addEventListener('wheel',clean,{passive:true});
+    window.addEventListener('touchstart',clean,{passive:true});
+    window.addEventListener('keydown',e=>{if(e.key==='Escape')clean();});
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)clean();});
+  motion.addEventListener('change',clean);
+  }
+
+  const cvButton=document.querySelector('.nav-cv');
+  const cvDialog=document.getElementById('cvDialog');
+  const cvClose=cvDialog?.querySelector('.cv-close');
+  if(cvButton && cvDialog && cvClose) {
+    cvButton.addEventListener('click',()=>cvDialog.showModal());
+    cvClose.addEventListener('click',()=>cvDialog.close());
+    cvDialog.addEventListener('click',event=>{ if(event.target===cvDialog)cvDialog.close(); });
+  }
+
 })();
