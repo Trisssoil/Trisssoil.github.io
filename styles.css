@@ -552,3 +552,18 @@ body::before { background: var(--scene); }
 .hand:hover::before { opacity:.78; }
 .hand.is-floating { transition:none; }
 @media(prefers-reduced-motion:reduce) { .hand,.hand::before { transition:none; } }
+
+/* Neutral specular light: color comes from the refracted scene, not paint. */
+:is(.intro-text,.skills-panel,.card,#hobbies .prose).liquid-glass::after,
+.navbar.liquid-glass::after,
+.links-dropdown.liquid-glass::after {
+  padding:1px;
+  background:radial-gradient(ellipse 55% 90% at var(--light-x,20%) var(--light-y,0%),#ffffffed,transparent 75%),linear-gradient(150deg,#ffffffb0,#ffffff18 38%,#ffffff0a 62%,#ffffffa3);
+  filter:none;
+}
+.nav-home,.links-menu summary,.nav-cv,.tag,.card-icon,.toolkit-lens,.cv-close {
+  box-shadow:inset 1px 1px 1px #fff,inset -1px -1px 2px #a9c9e156,0 5px 12px -7px #425b8a40;
+}
+@media(prefers-reduced-motion:reduce) {
+  :is(.intro-text,.skills-panel,.card,#hobbies .prose).liquid-glass::after,.navbar.liquid-glass::after,.links-dropdown.liquid-glass::after { filter:none; }
+}

@@ -38,11 +38,14 @@
     const displacement = document.createElementNS(ns, 'feDisplacementMap');
     displacement.setAttribute('in', 'SourceGraphic'); displacement.setAttribute('in2', 'normal');
     // Stronger lensing stays within the rim; label backing remains undistorted.
-    displacement.setAttribute('scale', el.matches('.navbar') ? '28' : el.matches('.links-dropdown') ? '16' : '76');
+    const lensDepth=el.matches('.navbar') ? 28 : el.matches('.links-dropdown') ? 16 : 76;
+    const dispersion=el.matches('.navbar, .links-dropdown') ? 2.5 : 4;
+    displacement.setAttribute('scale',String(lensDepth));
     displacement.setAttribute('xChannelSelector', 'R'); displacement.setAttribute('yChannelSelector', 'G');
     filter.append(map, displacement);
-    if (!el.matches('.navbar, .links-dropdown')) {
-      // Separate color sampling only slightly, using the same smooth normal map.
+    {
+      // Sample the actual backdrop at slightly different wavelengths. Uniform
+      // backgrounds stay neutral; color fringes follow refracted scene details.
       displacement.setAttribute('result','greenLens');
       const channel=(name,scale,values)=>{
         const bend=document.createElementNS(ns,'feDisplacementMap');
@@ -52,9 +55,9 @@
         const color=document.createElementNS(ns,'feColorMatrix');
         color.setAttribute('in',name+'Lens');color.setAttribute('type','matrix');color.setAttribute('values',values);color.setAttribute('result',name);filter.appendChild(color);
       };
-      channel('red',75,'1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0');
+      channel('red',lensDepth-dispersion,'1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0');
       const green=document.createElementNS(ns,'feColorMatrix');green.setAttribute('in','greenLens');green.setAttribute('type','matrix');green.setAttribute('values','0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0');green.setAttribute('result','green');filter.appendChild(green);
-      channel('blue',77,'0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0');
+      channel('blue',lensDepth+dispersion,'0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0');
       for(const [a,b,result] of [['red','green','rg'],['rg','blue','spectrum']]) {
         const merge=document.createElementNS(ns,'feComposite');merge.setAttribute('in',a);merge.setAttribute('in2',b);merge.setAttribute('operator','arithmetic');merge.setAttribute('k2','1');merge.setAttribute('k3','1');merge.setAttribute('result',result);filter.appendChild(merge);
       }
