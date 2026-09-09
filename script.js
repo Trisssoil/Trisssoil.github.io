@@ -108,6 +108,17 @@
     if (el.matches('.card, .intro-text, .skills-panel, #hobbies .prose')) {
       el.classList.add('pointer-surface');
       const sheen=document.createElement('span');sheen.className='pointer-sheen';sheen.setAttribute('aria-hidden','true');el.appendChild(sheen);
+      if (!motion.matches) {
+        const revealObserver=new IntersectionObserver(entries=>{
+          if(!entries[0].isIntersecting) return;
+          revealObserver.disconnect();
+          el.animate([
+            {opacity:0,transform:'perspective(1000px) rotateX(8deg) translateY(26px) scale(.985)'},
+            {opacity:1,transform:'perspective(1000px) rotateX(0) translateY(0) scale(1)'}
+          ],{duration:680,delay:Math.min(index,6)*42,easing:'cubic-bezier(.18,.78,.22,1)'});
+        },{threshold:.12});
+        revealObserver.observe(el);
+      }
     }
     let hoverFrame = null;
     el.addEventListener('pointermove', e => {
@@ -134,6 +145,28 @@
       el.style.setProperty('--light-x','20%'); el.style.setProperty('--light-y','0%');
     });
   });
+
+  const titleLens=document.querySelector('.name');
+  if (titleLens) {
+    let nameFrame=null;
+    titleLens.addEventListener('pointermove',event=>{
+      if(!finePointer.matches || motion.matches || nameFrame!==null) return;
+      nameFrame=requestAnimationFrame(()=>{
+        const rect=titleLens.getBoundingClientRect();
+        titleLens.style.setProperty('--name-x',`${clamp((event.clientX-rect.left)/rect.width,0,1)*100}%`);
+        titleLens.style.setProperty('--name-y',`${clamp((event.clientY-rect.top)/rect.height,0,1)*100}%`);
+        nameFrame=null;
+      });
+    });
+    titleLens.addEventListener('pointerleave',()=>{titleLens.style.setProperty('--name-x','35%');titleLens.style.setProperty('--name-y','26%');});
+    titleLens.addEventListener('click',()=>{
+      if(motion.matches) return;
+      titleLens.classList.remove('is-rippling');
+      void titleLens.offsetWidth;
+      titleLens.classList.add('is-rippling');
+      setTimeout(()=>titleLens.classList.remove('is-rippling'),360);
+    });
+  }
 
 
   // A short-lived spring simulation: only blades near the contact point get force.
@@ -326,17 +359,63 @@
   const choices=[...document.querySelectorAll('.toolkit-choice')];
   const selector=document.querySelector('.toolkit-selector');
   const stage=document.querySelector('.toolkit-stage');
-  const toolkit={code:['{ }','Python · R · Unix/Bash','From a question to a script.'],discover:['⌬','BMRB mining · Allostery · HSQC · Wet-lab','Looking closer. Finding connections.'],build:['↗','Web Dev · Local LLMs','Ideas you can interact with.']};
+  const toolkit={code:['code','Python · R · Unix/Bash','From a question to a script.'],discover:['discover','BMRB mining · Allostery · HSQC · Wet-lab','Looking closer. Finding connections.'],build:['build','Web Dev · Local LLMs','Ideas you can interact with.']};
+  const particleCanvas=stage?.querySelector('.toolkit-particles');
+  let setParticleShape=()=>{};
+  if(particleCanvas) {
+    const ctx=particleCanvas.getContext('2d');
+    const particles=Array.from({length:92},()=>({x:0,y:0,vx:0,vy:0,tx:0,ty:0,size:1+Math.random()*1.55,phase:Math.random()*Math.PI*2}));
+    let width=0,height=0,dpr=1,frame=0,visible=true,mouse=null,shape='code',last=performance.now();
+    const glyph={code:'{ }',discover:'⌬',build:'↗'};
+    const makeTargets=()=>{
+      if(!ctx||!width||!height)return;
+      const map=document.createElement('canvas');map.width=width*2;map.height=height*2;
+      const pen=map.getContext('2d');pen.scale(2,2);pen.fillStyle='#000';pen.textAlign='center';pen.textBaseline='middle';pen.font=`500 ${shape==='code'?50:58}px ui-rounded, system-ui, sans-serif`;
+      pen.fillText(glyph[shape],width/2,height/2+1);
+      const data=pen.getImageData(0,0,map.width,map.height).data,spots=[];
+      for(let y=2;y<map.height-2;y+=3)for(let x=2;x<map.width-2;x+=3)if(data[(y*map.width+x)*4+3]>140)spots.push([x/2,y/2]);
+      for(let i=spots.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[spots[i],spots[j]]=[spots[j],spots[i]];}
+      particles.forEach((p,i)=>{const spot=spots[i%spots.length]||[width/2,height/2];p.tx=spot[0];p.ty=spot[1];if(!p.x&&!p.y){p.x=width/2+(Math.random()-.5)*18;p.y=height/2+(Math.random()-.5)*18;}});
+    };
+    const resize=()=>{
+      const rect=particleCanvas.getBoundingClientRect();dpr=Math.min(devicePixelRatio||1,2);width=Math.max(1,Math.round(rect.width));height=Math.max(1,Math.round(rect.height));
+      particleCanvas.width=Math.round(width*dpr);particleCanvas.height=Math.round(height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);makeTargets();
+    };
+    const draw=now=>{
+      if(!visible)return;
+      const dt=Math.min(32,now-last)/16.67;last=now;ctx.clearRect(0,0,width,height);
+      for(const p of particles){
+        const dx=p.tx-p.x,dy=p.ty-p.y; p.vx+=(dx*.038)*dt;p.vy+=(dy*.038)*dt;
+        if(mouse){const mx=p.x-mouse.x,my=p.y-mouse.y,dist=Math.hypot(mx,my)||1;if(dist<64){const force=(1-dist/64)*3.2;p.vx+=mx/dist*force*dt;p.vy+=my/dist*force*dt;}}
+        p.vx*=.8;p.vy*=.8;p.x+=p.vx*dt;p.y+=p.vy*dt;
+        const glow=.42+Math.sin(now*.003+p.phase)*.18;ctx.beginPath();ctx.fillStyle=`rgba(64,116,174,${glow})`;ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
+      }
+      frame=requestAnimationFrame(draw);
+    };
+    setParticleShape=next=>{shape=next;makeTargets();};
+    new ResizeObserver(resize).observe(particleCanvas);resize();
+    particleCanvas.addEventListener('pointermove',event=>{const rect=particleCanvas.getBoundingClientRect();mouse={x:event.clientX-rect.left,y:event.clientY-rect.top};});
+    particleCanvas.addEventListener('pointerleave',()=>{mouse=null;});
+    new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;if(visible&&!frame){last=performance.now();frame=requestAnimationFrame(draw);}if(!visible&&frame){cancelAnimationFrame(frame);frame=0;}}).observe(particleCanvas);
+    frame=requestAnimationFrame(draw);
+  }
   choices.forEach((button,index)=>button.addEventListener('click',()=>{
     if(button.getAttribute('aria-pressed')==='true') return;
     choices.forEach(other=>other.setAttribute('aria-pressed',String(other===button)));
     selector.style.setProperty('--selected',index);
-    const [symbol,items,note]=toolkit[button.dataset.toolkit];
-    stage.querySelector('.toolkit-symbol').textContent=symbol;
+    const [particleShape,items,note]=toolkit[button.dataset.toolkit];
+    setParticleShape(particleShape);
     stage.querySelector('.toolkit-items').textContent=items;
     stage.querySelector('.toolkit-note').textContent=note;
     if(!motion.matches) {
-      selector.querySelector('.toolkit-lens').animate([{scale:'1'},{scale:'1.16 .85'},{scale:'.97 1.06'},{scale:'1'}],{duration:550,easing:'ease-out'});
+      const lens=selector.querySelector('.toolkit-lens');
+      lens.getAnimations().forEach(animation=>animation.cancel());
+      lens.animate([
+        {scale:'1'},
+        {scale:'1.026 .974',offset:.32},
+        {scale:'.992 1.014',offset:.64},
+        {scale:'1'}
+      ],{duration:440,easing:'cubic-bezier(.22,.82,.24,1)'});
       stage.animate([{opacity:.25,transform:'translateY(8px) scale(.97)'},{opacity:1,transform:'translateY(0) scale(1)'}],{duration:420,easing:'cubic-bezier(.2,.8,.2,1)'});
     }
   }));
